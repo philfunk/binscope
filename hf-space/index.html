@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>binscope — static binary triage</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a2e; --muted: #5a5a72; --card: #f5f5fa;
+    --border: #e2e2ee; --accent: #4f46e5;
+    --high: #dc2626; --medium: #d97706; --low: #2563eb; --info: #6b7280;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e0e14; --fg: #e8e8f0; --muted: #a0a0b8; --card: #17171f;
+      --border: #2a2a38; --accent: #818cf8;
+      --high: #f87171; --medium: #fbbf24; --low: #60a5fa; --info: #9ca3af;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.55 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    padding: 24px 16px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .note {
+    background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 8px; padding: 12px 14px; margin: 0 0 20px; font-size: 0.92rem; color: var(--muted);
+  }
+  .drop {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 28px; text-align: center;
+    background: var(--card); cursor: pointer; transition: border-color .15s;
+  }
+  .drop:hover { border-color: var(--accent); }
+  .drop input { display: none; }
+  #status { margin: 16px 0; color: var(--muted); min-height: 1.4em; }
+  .spin { display:inline-block; width:14px;height:14px;border:2px solid var(--border);
+          border-top-color: var(--accent); border-radius:50%; animation: s .8s linear infinite; vertical-align:-2px; margin-right:8px;}
+  @keyframes s { to { transform: rotate(360deg); } }
+  .meta { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin: 18px 0; }
+  .meta code { word-break: break-all; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .sev { font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: .04em; }
+  .sev.high { color: var(--high); } .sev.medium { color: var(--medium); }
+  .sev.low { color: var(--low); } .sev.info { color: var(--info); }
+  .coord { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+  .btn { display:inline-block; background: var(--accent); color:#fff; border:0; border-radius:8px;
+         padding:8px 14px; font-size:0.9rem; cursor:pointer; text-decoration:none; margin-top:8px; }
+  details { margin-top: 18px; } summary { cursor: pointer; color: var(--accent); }
+  pre { background: var(--card); border:1px solid var(--border); border-radius:8px; padding:12px; overflow:auto; font-size:0.82rem; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 0.85rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔎 binscope</h1>
+  <p class="sub">Static binary triage, running entirely in your browser.</p>
+
+  <div class="note">
+    This demo runs only binscope's <strong>triage</strong> stage via Python in WebAssembly (Pyodide).
+    Your file <strong>never leaves your browser</strong> and is <strong>never executed</strong> — it is read, not run.
+    The full pipeline (Ghidra, Rizin, capa, angr, Frida, AFL++) runs locally from the
+    <a href="https://github.com/philfunk/binscope" target="_blank" rel="noopener">GitHub repo</a>.
+  </div>
+
+  <label class="drop" id="drop">
+    <input type="file" id="file" />
+    <div><strong>Choose a binary</strong> (ELF / PE / Mach-O / …) or drop it here</div>
+    <div class="sub" style="margin-top:6px">up to 25 MB · analyzed locally, nothing uploaded</div>
+  </label>
+
+  <div id="status"></div>
+  <div id="result"></div>
+
+  <footer>
+    binscope is for authorized analysis only — malware defense, CTFs, research, interoperability, debugging.
+    MIT licensed · <a href="https://github.com/philfunk/binscope" target="_blank" rel="noopener">source on GitHub</a>.
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+<script>
+const MAX_BYTES = 25 * 1024 * 1024;
+const statusEl = document.getElementById("status");
+const resultEl = document.getElementById("result");
+const fileEl = document.getElementById("file");
+const dropEl = document.getElementById("drop");
+
+const PYCODE = `
+import json, os, tempfile
+from pathlib import Path
+from binscope.config import Config
+from binscope.pipeline import Pipeline
+
+def run_triage(path):
+    cfg = Config(target=Path(path), out_dir=Path(tempfile.mkdtemp()), stages=["triage"])
+    report = Pipeline(cfg).run()
+    order = {"high":0,"medium":1,"low":2,"info":3}
+    rows = []
+    for st in report.stages:
+        for f in st.findings:
+            rows.append({"severity": f.severity.value, "title": f.title,
+                         "coordinate": f.coordinate, "tags": ", ".join(f.tags)})
+    rows.sort(key=lambda r: order.get(r["severity"], 9))
+    t = report.target
+    return json.dumps({
+        "header": {"name": os.path.basename(path), "filetype": t.filetype,
+                   "family": t.family, "arch": t.arch, "bits": t.bits,
+                   "size": t.size, "entropy": round(t.entropy, 2), "sha256": t.sha256},
+        "rows": rows, "markdown": report.to_markdown(), "json": report.to_json(),
+    })
+`;
+
+function setStatus(html, spin=false) {
+  statusEl.innerHTML = (spin ? '<span class="spin"></span>' : '') + html;
+}
+
+const ready = (async () => {
+  setStatus("Loading Python runtime (Pyodide)…", true);
+  const pyodide = await loadPyodide();
+  setStatus("Installing binscope…", true);
+  await pyodide.loadPackage("micropip");
+  const micropip = pyodide.pyimport("micropip");
+  const wheelURL = new URL("binscope-0.1.0-py3-none-any.whl", location.href).href;
+  await micropip.install(wheelURL);
+  await pyodide.runPythonAsync(PYCODE);
+  setStatus("Ready — choose a binary to analyze.");
+  return pyodide;
+})().catch(err => { setStatus("⚠️ Failed to start: " + err); throw err; });
+
+function esc(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function render(data) {
+  const h = data.header;
+  let html = '<div class="meta">' +
+    '<strong>' + esc(h.name) + '</strong> — ' + esc(h.filetype) +
+    ' (' + esc(h.family) + ', ' + esc(h.arch) + '/' + h.bits + '-bit)<br>' +
+    'size ' + h.size.toLocaleString() + ' bytes · entropy ' + h.entropy + ' bits/byte<br>' +
+    '<code>sha256 ' + esc(h.sha256) + '</code></div>';
+
+  if (data.rows.length) {
+    html += '<table><thead><tr><th>severity</th><th>finding</th><th>coordinate</th><th>tags</th></tr></thead><tbody>';
+    for (const r of data.rows) {
+      html += '<tr><td><span class="sev ' + r.severity + '">' + r.severity + '</span></td>' +
+              '<td>' + esc(r.title) + '</td>' +
+              '<td class="coord">' + esc(r.coordinate) + '</td>' +
+              '<td>' + esc(r.tags) + '</td></tr>';
+    }
+    html += '</tbody></table>';
+  } else {
+    html += '<p>No triage findings.</p>';
+  }
+
+  const blob = new Blob([data.json], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  html += '<a class="btn" href="' + url + '" download="' + esc(h.name) + '-binscope.json">Download JSON report</a>';
+  html += '<details><summary>Full Markdown report</summary><pre>' + esc(data.markdown) + '</pre></details>';
+  resultEl.innerHTML = html;
+}
+
+async function analyze(file) {
+  if (!file) return;
+  if (file.size > MAX_BYTES) { setStatus("⚠️ File is " + (file.size/1e6).toFixed(1) + " MB; the demo cap is 25 MB."); return; }
+  resultEl.innerHTML = "";
+  setStatus("Analyzing " + esc(file.name) + "…", true);
+  try {
+    const pyodide = await ready;
+    const buf = new Uint8Array(await file.arrayBuffer());
+    pyodide.FS.writeFile("/tmp/sample.bin", buf);
+    const out = pyodide.globals.get("run_triage")("/tmp/sample.bin");
+    render(JSON.parse(out));
+    setStatus("Done.");
+  } catch (err) {
+    setStatus("⚠️ Analysis failed: " + esc(err));
+  }
+}
+
+fileEl.addEventListener("change", e => analyze(e.target.files[0]));
+dropEl.addEventListener("dragover", e => { e.preventDefault(); });
+dropEl.addEventListener("drop", e => { e.preventDefault(); analyze(e.dataTransfer.files[0]); });
+</script>
+</body>
+</html>
