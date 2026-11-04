@@ -1,8 +1,17 @@
 # binscope
 
+[![CI](https://github.com/philfunk/binscope/actions/workflows/ci.yml/badge.svg)](https://github.com/philfunk/binscope/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+[![Code style: stdlib-only core](https://img.shields.io/badge/core-stdlib--only-success.svg)](pyproject.toml)
+[![🤗 Live demo](https://img.shields.io/badge/%F0%9F%A4%97%20demo-Hugging%20Face%20Space-ffcc4d.svg)](https://huggingface.co/spaces/philippefunk/binscope)
+
 A reverse-engineering and dynamic-analysis **orchestrator**. One program that
 drives a suite of open-source binary-analysis tools through a single staged
 pipeline and merges everything into one unified report.
+
+> **▶ Try it now, nothing to install:** the [live in-browser demo](https://huggingface.co/spaces/philippefunk/binscope)
+> runs binscope's triage on your file entirely client-side (WebAssembly Python).
 
 It does **not** reimplement the tools — it runs the real ones (Ghidra, Rizin,
 capa, angr, Frida, AFL++, native tracers), parses their output, and correlates
