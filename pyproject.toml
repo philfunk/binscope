@@ -26,10 +26,10 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/OWNER/binscope"
-Repository = "https://github.com/OWNER/binscope"
-Issues = "https://github.com/OWNER/binscope/issues"
-Changelog = "https://github.com/OWNER/binscope/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/philfunk/binscope"
+Repository = "https://github.com/philfunk/binscope"
+Issues = "https://github.com/philfunk/binscope/issues"
+Changelog = "https://github.com/philfunk/binscope/blob/main/CHANGELOG.md"
 
 # Core has zero required dependencies — it shells out to external tools and
 # degrades gracefully when they are absent. Optional extras pull in the Python
