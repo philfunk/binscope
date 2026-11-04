@@ -6,7 +6,7 @@ colorTo: gray
 sdk: static
 pinned: false
 license: mit
-short_description: In-browser static triage for compiled binaries (ELF/PE/Mach-O)
+short_description: In-browser static triage for binaries (ELF/PE/Mach-O)
 tags:
   - reverse-engineering
   - malware-analysis
