@@ -1,0 +1,13 @@
+# Normalize line endings: store text as LF in the repo, check out native.
+* text=auto eol=lf
+
+*.py    text eol=lf
+*.js    text eol=lf
+*.java  text eol=lf
+*.md    text eol=lf
+*.toml  text eol=lf
+*.yml   text eol=lf
+*.txt   text eol=lf
+
+# Treat sample/fixture binaries as binary if ever committed.
+*.bin   binary

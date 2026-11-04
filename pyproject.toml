@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "binscope"
+version = "0.1.0"
+description = "Reverse-engineering and dynamic-analysis orchestrator (Ghidra, Rizin, capa, angr, Frida, AFL++)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "binscope" }]
+keywords = ["reverse-engineering", "malware-analysis", "ghidra", "capa", "angr", "frida", "fuzzing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Disassemblers",
+]
+
+[project.urls]
+Homepage = "https://github.com/OWNER/binscope"
+Repository = "https://github.com/OWNER/binscope"
+Issues = "https://github.com/OWNER/binscope/issues"
+Changelog = "https://github.com/OWNER/binscope/blob/main/CHANGELOG.md"
+
+# Core has zero required dependencies — it shells out to external tools and
+# degrades gracefully when they are absent. Optional extras pull in the Python
+# libraries that specific stages can use directly.
+dependencies = []
+
+[project.optional-dependencies]
+symbolic = ["angr>=9.2"]
+dynamic = ["frida-tools>=12"]
+capa = ["flare-capa>=7"]
+all = ["angr>=9.2", "frida-tools>=12", "flare-capa>=7"]
+test = ["pytest>=7"]
+dev = ["pytest>=7", "ruff>=0.4"]
+
+[project.scripts]
+binscope = "binscope.cli:main"
+
+[tool.setuptools]
+packages = ["binscope", "binscope.stages"]
+
+[tool.setuptools.package-data]
+binscope = ["resources/*.java", "resources/*.js"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]  # long lines are checked by line-length, not hard-failed

@@ -1,0 +1,8 @@
+# binscope core needs nothing beyond the Python standard library.
+# Install the external analysis tools separately (see README / `binscope inventory`):
+#   Ghidra (analyzeHeadless, JDK 21), rizin, strace/ltrace, AFL++
+#
+# These optional Python packages let the capa / angr / frida stages run:
+flare-capa>=7        # capability identification
+angr>=9.2            # symbolic reachability
+frida-tools>=12      # dynamic instrumentation (frida CLI)
